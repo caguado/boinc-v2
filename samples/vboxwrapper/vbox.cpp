@@ -82,6 +82,7 @@ VBOX_VM::VBOX_VM() {
     memory_size_mb.clear();
     image_filename.clear();
     floppy_image_filename.clear();
+    cache_disk_filename.clear();
     iso_image_filename.clear();
     job_duration = 0.0;
     fraction_done_filename.clear();
@@ -92,6 +93,7 @@ VBOX_VM::VBOX_VM() {
     enable_cern_dataformat = false;
     enable_shared_directory = false;
     enable_floppyio = false;
+    enable_cache_disk = false;
     enable_isocontextualization = false;
     enable_remotedesktop = false;
     register_only = false;
@@ -854,6 +856,7 @@ int VBOX_VM::register_vm() {
     APP_INIT_DATA aid;
     char buf[256];
     int retval;
+    int portcount = 1;
 
     boinc_get_init_data_p(&aid);
     get_slot_directory(virtual_machine_slot_directory);
@@ -1110,7 +1113,14 @@ int VBOX_VM::register_vm() {
     command += "--controller \"" + vm_disk_controller_model + "\" ";
     command += "--hostiocache off ";
     if ((vm_disk_controller_type == "sata") || (vm_disk_controller_type == "SATA")) {
-        command += "--sataportcount 2 ";
+        if (enable_cache_disk) {
+            portcount++;
+	}
+	if (enable_isocontextualization) {
+            portcount++;
+	}
+	sprintf(buf, "%d", portcount);
+        command += "--portcount " + string(buf) + " ";
     }
 
     retval = vbm_popen(command, output, "add storage controller (fixed disk)");
@@ -1184,6 +1194,27 @@ int VBOX_VM::register_vm() {
 
     }
 
+    // Add a virtual cache disk drive to VM
+    //
+    if (enable_cache_disk){
+        fprintf(
+            stderr,
+            "%s Adding virtual cache disk drive to VM. (%s)\n",
+            vboxwrapper_msg_prefix(buf, sizeof(buf)),
+    		image_filename.c_str()
+        );
+        command  = "storageattach \"" + vm_name + "\" ";
+        command += "--storagectl \"Hard Disk Controller\" ";
+        command += "--port 1 ";
+        command += "--device 0 ";
+        command += "--type hdd ";
+        command += "--setuuid \"\" ";
+        command += "--medium \"" + virtual_machine_slot_directory + "/" + cache_disk_filename + "\" ";
+
+        retval = vbm_popen(command, output, "storage attach (cached disk)");
+        if (retval) return retval;
+    }
+
     // Add virtual ISO9660 disk drive to VM
     //
     if (enable_isocontextualization) {
@@ -1194,7 +1225,7 @@ int VBOX_VM::register_vm() {
         );
         command  = "storageattach \"" + vm_name + "\" ";
         command += "--storagectl \"Hard Disk Controller\" ";
-        command += "--port 1 ";
+        command += "--port 2 ";
         command += "--device 0 ";
 	command += "--type dvddrive ";
         command += "--medium \"" + virtual_machine_slot_directory + "/" + iso_image_filename + "\" ";
@@ -1364,6 +1395,20 @@ int VBOX_VM::deregister_vm(bool delete_media) {
         vbm_popen(command, output, "remove virtual floppy disk", false, false);
     }
 
+    if (enable_cache_disk) {
+        fprintf(
+            stderr,
+            "%s Removing virtual cache disk from VirtualBox.\n",
+            vboxwrapper_msg_prefix(buf, sizeof(buf))
+        );
+        command  = "closemedium disk \"" + virtual_machine_slot_directory + "/" + cache_disk_filename + "\" ";
+        if (delete_media) {
+            command += "--delete ";
+        }
+
+        vbm_popen(command, output, "remove virtual cache disk", false, false);
+    }
+
     if (enable_isocontextualization) {
         fprintf(
             stderr,
@@ -1375,7 +1420,7 @@ int VBOX_VM::deregister_vm(bool delete_media) {
             command += "--delete ";
         }
 
-        vbm_popen(command, output, "remove virtual ido9660 disk", false, false);
+        vbm_popen(command, output, "remove virtual iso9660 disk", false, false);
     }
 
     return 0;
@@ -1427,6 +1472,10 @@ int VBOX_VM::deregister_stale_vm() {
         if (enable_floppyio) {
             command  = "closemedium floppy \"" + virtual_machine_slot_directory + "/" + floppy_image_filename + "\" ";
             vbm_popen(command, output, "remove virtual floppy disk", false);
+        }
+        if (enable_cache_disk) {
+            command  = "closemedium disk \"" + virtual_machine_slot_directory + "/" + cache_disk_filename + "\" ";
+            vbm_popen(command, output, "remove virtual cache disk", false);
         }
         if (enable_isocontextualization) {
             command  = "closemedium dvd \"" + virtual_machine_slot_directory + "/" + iso_image_filename + "\" ";
