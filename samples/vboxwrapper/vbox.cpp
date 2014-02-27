@@ -449,15 +449,15 @@ int VBOX_VM::createsnapshot(double elapsed_time) {
     retval = vbm_popen(command, output, "create new snapshot", true, true, 0);
     if (retval) return retval;
 
-    // Resume VM
-    resume();
-
     // Set the suspended flag back to false before deleting the stale
     // snapshot
     poll(false);
 
     // Delete stale snapshot(s), if one exists
     cleanupsnapshots(false);
+
+    // Resume VM
+    resume();
 
     fprintf(
         stderr,
