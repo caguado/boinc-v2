@@ -843,8 +843,8 @@ int main(int argc, char** argv) {
             if (trickle_period) {
                 trickle_cpu_time += POLL_PERIOD;
                 if (trickle_cpu_time >= trickle_period) {
-                    sprintf(buf, "<cpu_time>%f</cpu_time>", trickle_cpu_time);
-                    boinc_send_trickle_up(const_cast<char*>("cpu_time"), buf);
+                    sprintf(buf, "<runtime>%f</runtime>", trickle_cpu_time);
+                    boinc_send_trickle_up(const_cast<char*>("runtime"), buf);
                     trickle_cpu_time = 0;
                 }
             }
