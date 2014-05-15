@@ -405,6 +405,11 @@ int main(int argc, char** argv) {
     boinc_options.check_heartbeat = true;
     boinc_options.handle_process_control = true;
     if (trickle_period > 0.0) {
+        fprintf(
+           stderr,
+           "%s vboxwrapper: will enable trickle ups (%f)\n",
+           vboxwrapper_msg_prefix(buf, sizeof(buf)),
+           trickle_period);
         boinc_options.handle_trickle_ups = true;
     }
     boinc_init_options(&boinc_options);
@@ -845,6 +850,11 @@ int main(int argc, char** argv) {
                 if (trickle_cpu_time >= trickle_period) {
                     sprintf(buf, "<runtime>%f</runtime>", trickle_cpu_time);
                     boinc_send_trickle_up(const_cast<char*>("runtime"), buf);
+                    fprintf(
+                        stderr,
+                        "%s vboxwrapper: trickle %f seconds of cpu time\n",
+                        vboxwrapper_msg_prefix(buf, sizeof(buf)),
+                        trickle_cpu_time);
                     trickle_cpu_time = 0;
                 }
             }
